@@ -6,11 +6,12 @@ import romashko.by.MemoryAndCPUStatistics;
 import romashko.by.model.Package;
 
 import java.io.*;
+import java.nio.channels.FileChannel;
 import java.util.Random;
 
 public class FileServiceTest {
-    private int numberOfElements = 10_000_000;
-    private String nameOfInputFile = "in.txt";
+    private int numberOfElements = 50_000_000;
+    private String nameOfInputFile = "in" + numberOfElements + ".txt";
     private String nameOfOutputFile = "out.txt";
 
     public static int[] getRandomNumbers(int[] numbers) {
@@ -29,17 +30,48 @@ public class FileServiceTest {
         for (int i = 0; i < numberOfElements; i++) {
             numbers[i] = i + 1;
         }
-        if(shuffle) {
+        if (shuffle) {
             numbers = getRandomNumbers(numbers);
         }
-        try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(nameOfInputFile))) {
+        try (FileChannel out = new FileOutputStream(nameOfInputFile).getChannel()) {
+            PackageOutputBuffer outputBuffer = new PackageOutputBuffer();
             for (int i = 0; i < numberOfElements; i++) {
                 Package temp = new Package(numbers[i], (numbers[i] + " abcdefghijklmnopqrstuvwxyz\n\r").getBytes());
-                Service.writePackage(temp, out);
+                outputBuffer.writePackage(temp, out);
             }
+            outputBuffer.flush(out);
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean isFileCorrect() {
+        int numberOfPackage = 1;
+        int character = 0;
+        int tempNumber = 0;
+        try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(nameOfOutputFile))) {
+            character = in.read();
+            while (character != -1) {
+                while (character >= '0' && character <= '9') {
+                    tempNumber = tempNumber * 10 + (character - '0');
+                    character = in.read();
+                }
+                if (tempNumber != numberOfPackage) {
+                    return false;
+                }
+                numberOfPackage++;
+                tempNumber = 0;
+                while(character != -1 && (character < '0' || character > '9')){
+                    character = in.read();
+                }
+            }
+            if(numberOfPackage != numberOfElements + 1){
+                return false;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return true;
     }
 
     @Test
@@ -47,20 +79,30 @@ public class FileServiceTest {
     public void startTest() throws Exception {
         MemoryAndCPUStatistics statistics = new MemoryAndCPUStatistics();
         File inFile = new File(nameOfInputFile);
-        if(!inFile.exists() || inFile.length() == 0){
+        if (!inFile.exists() || inFile.length() == 0) {
             generateFile(true);
         }
         statistics.startStatistics("stat.txt", 100, true);
         Service service = new Service(100_000, 10_000_000);
-        try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(nameOfInputFile))) {
-            Package temp = Service.readPackage(in);
+        try (FileChannel in = new FileInputStream(nameOfInputFile).getChannel()) {
+            PackageInputBuffer inputBuffer = new PackageInputBuffer();
+            Package temp = inputBuffer.readPackage(in);
             while (temp != null) {
                 service.add(temp);
-                temp = Service.readPackage(in);
+                temp = inputBuffer.readPackage(in);
             }
+//            Package temp = service.readPackage(in);
+//            while (temp != null) {
+//               // service.add(temp);
+//                temp = service.readPackage(in);
+//            }
             service.flushBuffer();
+            statistics.retrievedAllPackage();
             service.createFile(nameOfOutputFile);
             statistics.endStatistics();
+            if (!isFileCorrect()) {
+                System.out.println("File has been written wrong!");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

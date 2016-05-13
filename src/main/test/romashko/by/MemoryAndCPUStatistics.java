@@ -10,6 +10,7 @@ public class MemoryAndCPUStatistics implements Runnable {
     private int frequency;
     private boolean onlyResult;
     private Thread thread;
+    private long timeForGettingAllPackages;
 
     public void startStatistics(String nameOfFile, int frequency, boolean onlyResult) {
         this.nameOfFile = nameOfFile;
@@ -21,6 +22,10 @@ public class MemoryAndCPUStatistics implements Runnable {
         thread.start();
     }
 
+    public void retrievedAllPackage(){
+        timeForGettingAllPackages = System.currentTimeMillis() - startTime;
+    }
+
     public void endStatistics() throws InterruptedException{
         running = false;
         thread.join();
@@ -30,7 +35,7 @@ public class MemoryAndCPUStatistics implements Runnable {
     public void run() {
         long currentMemoryUse = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576;
         long maxMemoryUse = currentMemoryUse;
-        try (PrintWriter stat = new PrintWriter(new FileOutputStream(nameOfFile))) {
+        try (PrintWriter stat = new PrintWriter(new FileOutputStream(nameOfFile, true))) {
             while (running) {
                 Thread.sleep(frequency);
 
@@ -44,6 +49,7 @@ public class MemoryAndCPUStatistics implements Runnable {
                 }
             }
             stat.println("Total time: " + (System.currentTimeMillis() - startTime));
+            stat.println("Time for getting all packages: " + timeForGettingAllPackages);
             stat.println("Max memory use(MB): " + maxMemoryUse + '\n');
             stat.flush();
         } catch (Exception e) {
