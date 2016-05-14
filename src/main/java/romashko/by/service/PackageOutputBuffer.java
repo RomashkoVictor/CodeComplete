@@ -2,42 +2,69 @@ package romashko.by.service;
 
 
 import romashko.by.model.Package;
-import static romashko.by.service.DiskService.writeToDisk;
 
-import java.nio.ByteBuffer;
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-public class PackageOutputBuffer {
-    private static final int BUFFER_SIZE = 8192;
-    private ByteBuffer outputBuffer = (ByteBuffer) ByteBuffer.allocate(BUFFER_SIZE);
+public class PackageOutputBuffer implements AutoCloseable, Closeable {
+    private ConcurrentByteBuffer currentBuffer;
+    private ConcurrentByteBuffer reserveBuffer;
 
-    public void writePackage(Package pack, FileChannel out) {
-        if (outputBuffer.remaining() < 8) {
-            writeToDisk(outputBuffer, out);
-        }
-        outputBuffer.putInt(pack.getLength());
-        outputBuffer.putInt(pack.getNum());
-        writeDataOfPackage(pack, out);
+    public PackageOutputBuffer(FileChannel fileChannel) {
+        currentBuffer = new ConcurrentByteBuffer(fileChannel);
+        reserveBuffer = new ConcurrentByteBuffer(fileChannel);
     }
 
-    public void writeDataOfPackage(Package pack, FileChannel out) {
+    private void exchangeBuffers() {
+        try {
+            synchronized (reserveBuffer) {
+                while (reserveBuffer.isLocked()) {
+                    reserveBuffer.wait();
+                }
+                ConcurrentByteBuffer temp = currentBuffer;
+                currentBuffer = reserveBuffer;
+                reserveBuffer = temp;
+                reserveBuffer.setLocked(true);
+            }
+            DiskService.writeBuffer(reserveBuffer);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void writePackage(Package pack) {
+        if (currentBuffer.remaining() < 8) {
+            exchangeBuffers();
+        }
+        currentBuffer.putInt(pack.getLength());
+        currentBuffer.putInt(pack.getNum());
+        writeDataOfPackage(pack);
+    }
+
+    public void writeDataOfPackage(Package pack) {
         byte[] data = pack.getData();
         int length = data.length;
         int position = 0;
-        int size = Math.min(outputBuffer.remaining(), length);
-        outputBuffer.put(data, position, size);
+        int size = Math.min(currentBuffer.remaining(), length);
+        currentBuffer.put(data, position, size);
         length -= size;
         while (length != 0) {
             position += size;
-            writeToDisk(outputBuffer, out);
-            size = Math.min(outputBuffer.remaining(), length);
-            outputBuffer.put(data, position, size);
+            exchangeBuffers();
+            size = Math.min(currentBuffer.remaining(), length);
+            currentBuffer.put(data, position, size);
             length -= size;
         }
     }
 
-    public void flush(FileChannel out) {
-        writeToDisk(outputBuffer, out);
-        outputBuffer.clear();
+    public void flush() {
+        exchangeBuffers();
+        //currentBuffer.clear();
+    }
+
+    @Override
+    public void close() throws IOException {
+        fileChannel.close();
     }
 }

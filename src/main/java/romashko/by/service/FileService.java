@@ -9,44 +9,23 @@ import java.util.Arrays;
 import java.util.Queue;
 
 public class FileService implements Runnable {
-    private static final int BUFFER_SIZE = 8192;
-    private ByteBuffer inputBuffer;
-    private ByteBuffer outputBuffer;
 
     private Thread thread;
     boolean running = false;
-    private int frequency;
-    private Queue<Package[]> queueOfBuffers;
-    private Queue<Integer> numberElementsInBuffer;
+    private int frequency = 50;
+    private Queue<PackageInputBuffer> inputBuffers;
+    private Queue<ByteBuffer> outputBuffers;
+    private Queue<FileChannel> outputFiles;
     private int numberOfBuffer;
-
-    public FileService() {
-        inputBuffer = (ByteBuffer) ByteBuffer.allocate(BUFFER_SIZE).position(BUFFER_SIZE);
-        outputBuffer = (ByteBuffer) ByteBuffer.allocate(BUFFER_SIZE);
-    }
-
-
-    public int getNumberOfBuffer() {
-        return numberOfBuffer;
-    }
 
     @Override
     public void run() {
         try {
-            while (running || !queueOfBuffers.isEmpty()) {
-                if (!queueOfBuffers.isEmpty()) {
-                    try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(numberOfBuffer + ".txt"))) {
-                        numberOfBuffer++;
-                        Package[] buffer = queueOfBuffers.poll();
-                        int numberOfPackages = numberElementsInBuffer.poll();
-                        Arrays.sort(buffer, 0, numberOfPackages);
+            while (running) {
+                if (!outputBuffers.isEmpty()) {
+                    ByteBuffer buffer = outputBuffers.poll();
+                    FileChannel in = outputFiles.poll();
 
-                        for (int i = 0; i < numberOfPackages; i++) {
-                            writePackage(buffer[i], out);
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
                 } else {
                     Thread.sleep(frequency);
                 }
@@ -57,9 +36,20 @@ public class FileService implements Runnable {
 
     }
 
-    public void addBuffer(Package[] buffer, int numberOfElements) {
-        queueOfBuffers.add(buffer);
-        numberElementsInBuffer.add(numberOfElements);
+    public void readBuffer(PackageInputBuffer input) {
+        synchronized (input) {
+            try {
+                inputBuffers.add(input);
+                input.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void writeBuffer(ByteBuffer buffer, FileChannel in) {
+        outputBuffers.add(buffer);
+        outputFiles.add(in);
     }
 
     public void startWriting() {

@@ -9,7 +9,7 @@ import java.util.PriorityQueue;
 import java.util.TreeMap;
 
 public class Service {
-    private PackageOutputBuffer outputBuffer = new PackageOutputBuffer();
+    //private PackageOutputBuffer outputBuffer = new PackageOutputBuffer();
     private Package buffer[];
     private int currentNumberOfPackages;
     private int maxNumberOfPackages;
@@ -46,19 +46,20 @@ public class Service {
 //        out.write(pack.getData());
 //    }
 
-    public void writeBuffer(FileChannel out) throws IOException {
+    public void writeBuffer(PackageOutputBuffer out) throws IOException {
 
         Arrays.sort(buffer, 0, currentNumberOfPackages);
 
         for (int i = 0; i < currentNumberOfPackages; i++) {
-            outputBuffer.writePackage(buffer[i], out);
+            out.writePackage(buffer[i]);
         }
-        outputBuffer.flush(out);
+        out.flush();
     }
 
     public void add(Package pack) {
         if (!canAddPackage(pack.getLength())) {
-            try (FileChannel out = new FileOutputStream(numberOfBuffers + ".txt").getChannel()) {
+            try  {
+                PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(numberOfBuffers + ".txt").getChannel());
                 writeBuffer(out);
 
                 buffer = new Package[maxNumberOfPackages];
@@ -76,7 +77,8 @@ public class Service {
     }
 
     public void flushBuffer() {
-        try (FileChannel out = new FileOutputStream(numberOfBuffers + ".txt").getChannel()) {
+        try {
+            PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(numberOfBuffers + ".txt").getChannel());
             writeBuffer(out);
 
             buffer = new Package[maxNumberOfPackages];
@@ -89,11 +91,11 @@ public class Service {
     }
 
     public void createFile(String nameOfResultFile) {
-        try (FileChannel out = new FileOutputStream(nameOfResultFile).getChannel()) {
+        try {
+            PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfResultFile).getChannel());
 
             PackageInputBuffer[] inputBuffers = new PackageInputBuffer[numberOfBuffers];
             File file[] = new File[numberOfBuffers];
-            FileChannel buffer[] = new FileChannel[numberOfBuffers];
             PriorityQueue<Package> queue = new PriorityQueue<>(numberOfBuffers);
             Integer[] values = new Integer[numberOfBuffers];
             for(int i = 0; i < numberOfBuffers; i++){
@@ -103,31 +105,30 @@ public class Service {
 
             for (int i = 0; i < numberOfBuffers; i++) {
                 file[i] = new File(i + ".txt");
-                buffer[i] = new FileInputStream(file[i]).getChannel();
-                inputBuffers[i] = new PackageInputBuffer();
+                inputBuffers[i] = new PackageInputBuffer(new FileInputStream(file[i]).getChannel());
             }
             for (int i = 0; i < numberOfBuffers; i++) {
-                Package pack = inputBuffers[i].readPackage(buffer[i]);
+                Package pack = inputBuffers[i].readPackage();
                 map.put(pack, values[i]);
                 queue.add(pack);
             }
             while (queue.peek() != null) {
                 Package temp = queue.poll();
-                outputBuffer.writeDataOfPackage(temp, out);
+                out.writeDataOfPackage(temp);
                 int index = map.get(temp);
                 map.remove(temp);
-                temp = inputBuffers[index].readPackage(buffer[index]);
+                temp = inputBuffers[index].readPackage();
                 if(temp != null) {
                     map.put(temp, values[index]);
                     queue.add(temp);
                 }
             }
-            outputBuffer.flush(out);
+            out.flush();
             for (int i = 0; i < numberOfBuffers; i++) {
-                buffer[i].close();
+                //inputBuffers[i].close();
                 file[i].delete();
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

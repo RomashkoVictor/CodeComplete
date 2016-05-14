@@ -10,7 +10,7 @@ import java.nio.channels.FileChannel;
 import java.util.Random;
 
 public class FileServiceTest {
-    private int numberOfElements = 50_000_000;
+    private int numberOfElements = 1_000_000;
     private String nameOfInputFile = "in" + numberOfElements + ".txt";
     private String nameOfOutputFile = "out.txt";
 
@@ -33,13 +33,13 @@ public class FileServiceTest {
         if (shuffle) {
             numbers = getRandomNumbers(numbers);
         }
-        try (FileChannel out = new FileOutputStream(nameOfInputFile).getChannel()) {
-            PackageOutputBuffer outputBuffer = new PackageOutputBuffer();
+        try {
+            PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile).getChannel());
             for (int i = 0; i < numberOfElements; i++) {
-                Package temp = new Package(numbers[i], (numbers[i] + " abcdefghijklmnopqrstuvwxyz\n\r").getBytes());
-                outputBuffer.writePackage(temp, out);
+                Package temp = new Package(numbers[i], (numbers[i] + " abcdefghijklmnopqrstuvwxyz\n").getBytes());
+                out.writePackage(temp);
             }
-            outputBuffer.flush(out);
+            out.flush();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -79,17 +79,20 @@ public class FileServiceTest {
     public void startTest() throws Exception {
         MemoryAndCPUStatistics statistics = new MemoryAndCPUStatistics();
         File inFile = new File(nameOfInputFile);
+        DiskService diskService = new DiskService();
+        diskService.startService();
         if (!inFile.exists() || inFile.length() == 0) {
             generateFile(true);
         }
         statistics.startStatistics("stat.txt", 100, true);
         Service service = new Service(100_000, 10_000_000);
-        try (FileChannel in = new FileInputStream(nameOfInputFile).getChannel()) {
-            PackageInputBuffer inputBuffer = new PackageInputBuffer();
-            Package temp = inputBuffer.readPackage(in);
+
+        try {
+            PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel());
+            Package temp = in.readPackage();
             while (temp != null) {
                 service.add(temp);
-                temp = inputBuffer.readPackage(in);
+                temp = in.readPackage();
             }
 //            Package temp = service.readPackage(in);
 //            while (temp != null) {
@@ -99,6 +102,7 @@ public class FileServiceTest {
             service.flushBuffer();
             statistics.retrievedAllPackage();
             service.createFile(nameOfOutputFile);
+            diskService.stopService();
             statistics.endStatistics();
             if (!isFileCorrect()) {
                 System.out.println("File has been written wrong!");
