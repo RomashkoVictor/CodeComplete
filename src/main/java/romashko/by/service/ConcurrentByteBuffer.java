@@ -6,15 +6,18 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 public class ConcurrentByteBuffer {
-    public static final int BUFFER_SIZE = 8192;
+    public static final int BUFFER_SIZE = 8185;
+    public static final int MAX_BUFFER_SIZE = 8192;
     private ByteBuffer buffer;
     private boolean locked;
     private FileChannel fileChannel;
+    private boolean willClose;
 
     public ConcurrentByteBuffer(FileChannel fileChannel){
         this.fileChannel = fileChannel;
-
-        buffer = ByteBuffer.allocate(BUFFER_SIZE);
+        willClose = false;
+        buffer = ByteBuffer.allocate(MAX_BUFFER_SIZE);
+        buffer.limit(BUFFER_SIZE);
         locked = false;
     }
 
@@ -34,6 +37,13 @@ public class ConcurrentByteBuffer {
         return buffer;
     }
 
+    public void setWillClose(boolean willClose) {
+        this.willClose = willClose;
+    }
+
+    public boolean isWillClose() {
+        return willClose;
+    }
     //Delegating FileChannel
 
     public int read(ByteBuffer dst) throws IOException {
@@ -66,6 +76,10 @@ public class ConcurrentByteBuffer {
         return buffer.putInt(value);
     }
 
+    public ByteBuffer put(byte b) {
+        return buffer.put(b);
+    }
+
     public byte get() {
         return buffer.get();
     }
@@ -78,12 +92,24 @@ public class ConcurrentByteBuffer {
         return buffer.position(newPosition);
     }
 
+    public int limit() {
+        return buffer.limit();
+    }
+
+    public Buffer limit(int newLimit) {
+        return buffer.limit(newLimit);
+    }
+
+    public int position() {
+        return buffer.position();
+    }
+
     public ByteBuffer put(int index, byte b) {
         return buffer.put(index, b);
     }
 
     public Buffer clear() {
-        return buffer.clear();
+        return buffer.clear().limit(ConcurrentByteBuffer.BUFFER_SIZE);
     }
 
     public int remaining() {

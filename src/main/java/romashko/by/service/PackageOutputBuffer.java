@@ -7,7 +7,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-public class PackageOutputBuffer implements AutoCloseable, Closeable {
+public class PackageOutputBuffer implements AutoCloseable {
     private ConcurrentByteBuffer currentBuffer;
     private ConcurrentByteBuffer reserveBuffer;
 
@@ -58,13 +58,13 @@ public class PackageOutputBuffer implements AutoCloseable, Closeable {
         }
     }
 
-    public void flush() {
-        exchangeBuffers();
-        //currentBuffer.clear();
-    }
-
     @Override
     public void close() throws IOException {
-        fileChannel.close();
+        if(currentBuffer.position()!=0){
+            exchangeBuffers();
+        }
+        currentBuffer.position(currentBuffer.limit());
+        currentBuffer.setWillClose(true);
+        DiskService.writeBuffer(currentBuffer);
     }
 }

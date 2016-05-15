@@ -10,7 +10,7 @@ import java.nio.channels.FileChannel;
 import java.util.Random;
 
 public class FileServiceTest {
-    private int numberOfElements = 1_000_000;
+    public static int numberOfElements = 50_000_000;
     private String nameOfInputFile = "in" + numberOfElements + ".txt";
     private String nameOfOutputFile = "out.txt";
 
@@ -33,13 +33,11 @@ public class FileServiceTest {
         if (shuffle) {
             numbers = getRandomNumbers(numbers);
         }
-        try {
-            PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile).getChannel());
+        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile).getChannel())) {
             for (int i = 0; i < numberOfElements; i++) {
                 Package temp = new Package(numbers[i], (numbers[i] + " abcdefghijklmnopqrstuvwxyz\n").getBytes());
                 out.writePackage(temp);
             }
-            out.flush();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -47,7 +45,7 @@ public class FileServiceTest {
 
     public boolean isFileCorrect() {
         int numberOfPackage = 1;
-        int character = 0;
+        int character;
         int tempNumber = 0;
         try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(nameOfOutputFile))) {
             character = in.read();
@@ -61,11 +59,11 @@ public class FileServiceTest {
                 }
                 numberOfPackage++;
                 tempNumber = 0;
-                while(character != -1 && (character < '0' || character > '9')){
+                while (character != -1 && (character < '0' || character > '9')) {
                     character = in.read();
                 }
             }
-            if(numberOfPackage != numberOfElements + 1){
+            if (numberOfPackage != numberOfElements + 1) {
                 return false;
             }
         } catch (IOException e) {
@@ -79,34 +77,36 @@ public class FileServiceTest {
     public void startTest() throws Exception {
         MemoryAndCPUStatistics statistics = new MemoryAndCPUStatistics();
         File inFile = new File(nameOfInputFile);
+
         DiskService diskService = new DiskService();
         diskService.startService();
+
         if (!inFile.exists() || inFile.length() == 0) {
-            generateFile(true);
+            generateFile(false);
         }
+
         statistics.startStatistics("stat.txt", 100, true);
         Service service = new Service(100_000, 10_000_000);
-
-        try {
-            PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel());
+        try (PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel());
+             PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream("out").getChannel())) {
             Package temp = in.readPackage();
             while (temp != null) {
                 service.add(temp);
+                out.writePackage(temp);
                 temp = in.readPackage();
             }
-//            Package temp = service.readPackage(in);
-//            while (temp != null) {
-//               // service.add(temp);
-//                temp = service.readPackage(in);
-//            }
-            service.flushBuffer();
+            service.closeBuffer();
+
             statistics.retrievedAllPackage();
+
             service.createFile(nameOfOutputFile);
+
             diskService.stopService();
             statistics.endStatistics();
             if (!isFileCorrect()) {
                 System.out.println("File has been written wrong!");
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }

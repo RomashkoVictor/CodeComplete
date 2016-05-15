@@ -8,7 +8,6 @@ public class PackageInputBuffer implements AutoCloseable, Cloneable {
     private ConcurrentByteBuffer currentBuffer;
     private ConcurrentByteBuffer reserveBuffer;
 
-
     public PackageInputBuffer(FileChannel fileChannel) {
         currentBuffer = new ConcurrentByteBuffer(fileChannel);
         reserveBuffer = new ConcurrentByteBuffer(fileChannel);
@@ -21,6 +20,16 @@ public class PackageInputBuffer implements AutoCloseable, Cloneable {
             synchronized (reserveBuffer) {
                 while (reserveBuffer.isLocked()) {
                     reserveBuffer.wait();
+                }
+                if (currentBuffer.remaining() != 0) {
+                    int addSize = 8 - currentBuffer.remaining();
+                    currentBuffer.position(currentBuffer.limit());
+                    currentBuffer.limit(currentBuffer.limit() + addSize);
+                    while (currentBuffer.remaining() != 0) {
+                        currentBuffer.put(reserveBuffer.get());
+                    }
+                    currentBuffer.position(currentBuffer.position() - 8);
+                    return;
                 }
                 ConcurrentByteBuffer temp = currentBuffer;
                 currentBuffer = reserveBuffer;
@@ -35,9 +44,9 @@ public class PackageInputBuffer implements AutoCloseable, Cloneable {
 
     public Package readPackage() {
         while (currentBuffer.remaining() < 8) {
-            if(currentBuffer.isOpen()) {
+            if (currentBuffer.isOpen()) {
                 exchangeBuffers();
-            } else{
+            } else {
                 return null;
             }
         }
@@ -51,9 +60,9 @@ public class PackageInputBuffer implements AutoCloseable, Cloneable {
 
         while (length != 0) {
             position += size;
-            if(currentBuffer.isOpen()) {
+            if (currentBuffer.isOpen()) {
                 exchangeBuffers();
-            } else{
+            } else {
                 return null;
             }
             size = Math.min(currentBuffer.remaining(), length);
@@ -65,6 +74,8 @@ public class PackageInputBuffer implements AutoCloseable, Cloneable {
 
     @Override
     public void close() throws Exception {
-        currentBuffer.close();
+        currentBuffer.position(currentBuffer.limit());
+        currentBuffer.setWillClose(true);
+        DiskService.readBuffer(currentBuffer);
     }
 }

@@ -1,5 +1,7 @@
 package romashko.by;
 
+import romashko.by.service.FileServiceTest;
+
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
 
@@ -22,11 +24,11 @@ public class MemoryAndCPUStatistics implements Runnable {
         thread.start();
     }
 
-    public void retrievedAllPackage(){
+    public void retrievedAllPackage() {
         timeForGettingAllPackages = System.currentTimeMillis() - startTime;
     }
 
-    public void endStatistics() throws InterruptedException{
+    public void endStatistics() throws InterruptedException {
         running = false;
         thread.join();
     }
@@ -48,6 +50,7 @@ public class MemoryAndCPUStatistics implements Runnable {
                     stat.println("Current memory use(MB): " + currentMemoryUse + '\n');
                 }
             }
+            stat.println("Number of elements: " + FileServiceTest.numberOfElements/1_000 + "k");
             stat.println("Total time: " + (System.currentTimeMillis() - startTime));
             stat.println("Time for getting all packages: " + timeForGettingAllPackages);
             stat.println("Max memory use(MB): " + maxMemoryUse + '\n');
