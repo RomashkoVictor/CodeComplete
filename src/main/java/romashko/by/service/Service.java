@@ -1,5 +1,7 @@
 package romashko.by.service;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import romashko.by.model.Package;
 
 import java.io.*;
@@ -9,6 +11,7 @@ import java.util.PriorityQueue;
 import java.util.TreeMap;
 
 public class Service {
+    public final static Logger LOGGER = LogManager.getLogger(Service.class);
     private Package buffer[];
     private int currentNumberOfPackages;
     private int maxNumberOfPackages;

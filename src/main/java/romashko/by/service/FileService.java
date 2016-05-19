@@ -69,8 +69,6 @@ public class FileService implements Runnable {
 
     public static void writePackage(Package pack, OutputStream out) {
         try {
-            out.write(Package.getByteArrayFromInt(pack.getLength()));
-            out.write(Package.getByteArrayFromInt(pack.getNum()));
             out.write(pack.getData());
         } catch (IOException e) {
             e.printStackTrace();

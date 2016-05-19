@@ -12,7 +12,6 @@ public class DiskService implements Runnable {
     private boolean running = false;
     private static Queue<ConcurrentByteBuffer> inputBuffers = new ConcurrentLinkedQueue<>();
     private static Queue<ConcurrentByteBuffer> outputBuffers = new ConcurrentLinkedQueue<>();
-    public static Object monitor = new Object();
 
     public static void readBuffer(ConcurrentByteBuffer buffer) {
         synchronized (DiskService.class) {
