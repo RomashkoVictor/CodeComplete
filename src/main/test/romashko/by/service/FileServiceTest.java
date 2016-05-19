@@ -6,7 +6,6 @@ import romashko.by.MemoryAndCPUStatistics;
 import romashko.by.model.Package;
 
 import java.io.*;
-import java.nio.channels.FileChannel;
 import java.util.Random;
 
 public class FileServiceTest {
@@ -34,10 +33,12 @@ public class FileServiceTest {
             numbers = getRandomNumbers(numbers);
         }
         try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile).getChannel())) {
+            Service.LOGGER.debug("Start generating file");
             for (int i = 0; i < numberOfElements; i++) {
                 Package temp = new Package(numbers[i], (numbers[i] + " abcdefghijklmnopqrstuvwxyz\n").getBytes());
                 out.writePackage(temp);
             }
+            Service.LOGGER.debug("Cancel generating file");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -84,15 +85,13 @@ public class FileServiceTest {
         if (!inFile.exists() || inFile.length() == 0) {
             generateFile(false);
         }
-
-        statistics.startStatistics("stat.txt", 100, true);
+        Service.LOGGER.debug("Start test with number: " + numberOfElements);
+        statistics.startStatistics(100, true);
         Service service = new Service(100_000, 10_000_000);
-        try (PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel());
-             PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream("out").getChannel())) {
+        try (PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel())) {
             Package temp = in.readPackage();
             while (temp != null) {
                 service.add(temp);
-                out.writePackage(temp);
                 temp = in.readPackage();
             }
             service.closeBuffer();
@@ -104,7 +103,7 @@ public class FileServiceTest {
             diskService.stopService();
             statistics.endStatistics();
             if (!isFileCorrect()) {
-                System.out.println("File has been written wrong!");
+                Service.LOGGER.error("File is incorrect");
             }
 
         } catch (Exception e) {

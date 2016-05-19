@@ -12,7 +12,6 @@ public class DiskService implements Runnable {
     private boolean running = false;
     private static Queue<ConcurrentByteBuffer> inputBuffers = new ConcurrentLinkedQueue<>();
     private static Queue<ConcurrentByteBuffer> outputBuffers = new ConcurrentLinkedQueue<>();
-    public static Object monitor = new Object();
 
     public static void readBuffer(ConcurrentByteBuffer buffer) {
         synchronized (DiskService.class) {
@@ -28,40 +27,48 @@ public class DiskService implements Runnable {
         }
     }
 
-    public static void readFromDisk(ConcurrentByteBuffer inputBuffer) throws IOException {
-        if (inputBuffer.isWillClose() || !inputBuffer.isOpen()) {
-            inputBuffer.close();
-            return;
-        }
-        int i = 0;
-        int readByte = -1;
-        while (inputBuffer.remaining() != 0) {
-            inputBuffer.put(i++, inputBuffer.get());
-        }
-        inputBuffer.clear();
-        inputBuffer.position(i);
-        readByte = inputBuffer.read(inputBuffer.getBuffer());
-        if (readByte == -1) {
-            inputBuffer.close();
-        }
-        inputBuffer.flip();
-        synchronized (inputBuffer) {
-            inputBuffer.setLocked(false);
-            inputBuffer.notify();
+    public static void readFromDisk(ConcurrentByteBuffer inputBuffer){
+        try {
+            if (inputBuffer.isWillClose() || !inputBuffer.isOpen()) {
+                inputBuffer.close();
+                return;
+            }
+            int i = 0;
+            int readByte = -1;
+            while (inputBuffer.remaining() != 0) {
+                inputBuffer.put(i++, inputBuffer.get());
+            }
+            inputBuffer.clear();
+            inputBuffer.position(i);
+            readByte = inputBuffer.read(inputBuffer.getBuffer());
+            if (readByte == -1) {
+                inputBuffer.close();
+            }
+            inputBuffer.flip();
+            synchronized (inputBuffer) {
+                inputBuffer.setLocked(false);
+                inputBuffer.notify();
+            }
+        }catch(IOException e){
+            Service.LOGGER.error(e);
         }
     }
 
-    public static void writeToDisk(ConcurrentByteBuffer outputBuffer) throws IOException {
-        if (outputBuffer.isWillClose()) {
-            outputBuffer.close();
-            return;
-        }
-        outputBuffer.flip();
-        outputBuffer.write(outputBuffer.getBuffer());
-        outputBuffer.clear();
-        synchronized (outputBuffer) {
-            outputBuffer.setLocked(false);
-            outputBuffer.notify();
+    public static void writeToDisk(ConcurrentByteBuffer outputBuffer){
+        try {
+            if (outputBuffer.isWillClose()) {
+                outputBuffer.close();
+                return;
+            }
+            outputBuffer.flip();
+            outputBuffer.write(outputBuffer.getBuffer());
+            outputBuffer.clear();
+            synchronized (outputBuffer) {
+                outputBuffer.setLocked(false);
+                outputBuffer.notify();
+            }
+        }catch(IOException e){
+            Service.LOGGER.error(e);
         }
     }
 
