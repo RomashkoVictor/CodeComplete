@@ -67,8 +67,8 @@ public class FileService {
             TreeMap<Package, Integer> map = new TreeMap<>();
 
             for (int i = 0; i < numberOfBuffers; i++) {
-                file[i] = new File(i + ".txt");
-                inputBuffers[i] = new PackageInputBuffer(new FileInputStream(dir + file[i]).getChannel(), 4);
+                file[i] = new File(dir + i + ".txt");
+                inputBuffers[i] = new PackageInputBuffer(new FileInputStream(file[i]).getChannel(), 4);
             }
 
             for (int i = 0; i < numberOfBuffers; i++) {

@@ -2,31 +2,34 @@ package romashko.by.service;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import romashko.by.MemoryAndCPUStatistics;
 import romashko.by.model.Package;
+
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
 
 public class MainService {
     private static final MainService MAIN_SERVICE = new MainService();
     public static String dir = "C:\\Users\\Victor\\Git\\CodeComplete\\";
     private DiskService diskService;
     private FileService fileService;
-    private int maxNumberOfPackages;
+    private static int maxNumberOfPackages;
     private int numberOfPackages;
     private String nameOfOutputFile = "out.txt";
     public final static Logger LOGGER = LogManager.getLogger(FileService.class);
     public static boolean close = false;
 
+
     private MainService(){
         maxNumberOfPackages = Integer.MAX_VALUE;
         diskService = DiskService.getDiskService();
         fileService = new FileService(100_000, 10_000_000);
+        MemoryAndCPUStatistics.getMemoryAndCPUStatistics().startStatistics(100, true);
     }
 
-    public int getMaxNumberOfPackages() {
+    public static int getMaxNumberOfPackages() {
         return maxNumberOfPackages;
-    }
-
-    public void setMaxNumberOfPackages(int maxNumberOfPackages) {
-        this.maxNumberOfPackages = maxNumberOfPackages;
     }
 
     public static MainService getMainService(){
@@ -34,13 +37,18 @@ public class MainService {
     }
 
     private void createFile(){
+        MemoryAndCPUStatistics.getMemoryAndCPUStatistics().retrievedAllPackage();
         fileService.closeBuffer();
         fileService.createFile(nameOfOutputFile);
         DiskService.getDiskService().stopService();
+        if(!isFileCorrect()){
+            System.out.println("File is incorrect\n");
+            LOGGER.error("File is incorrect\n");
+        }
+        MemoryAndCPUStatistics.getMemoryAndCPUStatistics().endStatistics();
     }
 
     public synchronized void addPackage(Package pack, boolean endPackage){
-        System.out.println(pack.getNum());
         if(numberOfPackages < maxNumberOfPackages) {
             if (endPackage) {
                 maxNumberOfPackages = pack.getNum();
@@ -52,5 +60,34 @@ public class MainService {
                 close = true;
             }
         }
+    }
+
+    public boolean isFileCorrect() {
+        int numberOfPackage = 1;
+        int character;
+        int tempNumber = 0;
+        try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(dir + nameOfOutputFile))) {
+            character = in.read();
+            while (character != -1) {
+                while (character >= '0' && character <= '9') {
+                    tempNumber = tempNumber * 10 + (character - '0');
+                    character = in.read();
+                }
+                if (tempNumber != numberOfPackage) {
+                    return false;
+                }
+                numberOfPackage++;
+                tempNumber = 0;
+                while (character != -1 && (character < '0' || character > '9')) {
+                    character = in.read();
+                }
+            }
+            if (numberOfPackage != maxNumberOfPackages + 1) {
+                return false;
+            }
+        } catch (IOException e) {
+            LOGGER.error(e);
+        }
+        return true;
     }
 }
