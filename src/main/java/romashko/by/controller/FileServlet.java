@@ -1,6 +1,8 @@
 package romashko.by.controller;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import romashko.by.model.Package;
+import romashko.by.service.MainService;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -25,6 +27,7 @@ public class FileServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         if (DigestUtils.md5Hex(data).equals(checkSum)) {
             out.print("OK");
+            MainService.getMainService().addPackage(new Package(num, data.getBytes()), isEnd);
             response.setStatus(HttpServletResponse.SC_OK);
         } else {
             out.print("REPEAT");

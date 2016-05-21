@@ -26,8 +26,8 @@ public class DiskService implements Runnable {
     public void stopService() {
         try {
             running = false;
-            synchronized (DiskService.class) {
-                DiskService.class.notify();
+            synchronized (this) {
+                this.notify();
             }
             thread.join();
         } catch (InterruptedException e) {
@@ -36,18 +36,18 @@ public class DiskService implements Runnable {
     }
 
     public void readBuffer(FutureByteBuffer buffer) {
-        synchronized (DiskService.class) {
+        synchronized (this) {
             buffer.lock();
             inputBuffers.add(buffer);
-            DiskService.class.notify();
+            this.notify();
         }
     }
 
     public void writeBuffer(FutureByteBuffer buffer) {
-        synchronized (DiskService.class) {
+        synchronized (this) {
             buffer.lock();
             outputBuffers.add(buffer);
-            DiskService.class.notify();
+            this.notify();
         }
     }
 
@@ -100,9 +100,9 @@ public class DiskService implements Runnable {
                     FutureByteBuffer buffer = outputBuffers.poll();
                     DiskService.writeToDisk(buffer);
                 } else {
-                    synchronized (DiskService.class) {
+                    synchronized (this) {
                         if (outputBuffers.isEmpty() && inputBuffers.isEmpty()) {
-                            DiskService.class.wait();
+                            this.wait();
                         }
                     }
                 }

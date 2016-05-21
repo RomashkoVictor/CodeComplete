@@ -1,10 +1,11 @@
 package romashko.by;
 
-import romashko.by.service.FileFileServiceTest;
+import romashko.by.controller.FileServletTest;
 
 import static romashko.by.service.MainService.*;
 
 public class MemoryAndCPUStatistics implements Runnable {
+    private static final MemoryAndCPUStatistics statistics = new MemoryAndCPUStatistics();
     private boolean running;
     private long startTime;
     private int frequency;
@@ -19,6 +20,10 @@ public class MemoryAndCPUStatistics implements Runnable {
         running = true;
         thread = new Thread(this);
         thread.start();
+    }
+
+    public static MemoryAndCPUStatistics getMemoryAndCPUStatistics(){
+        return statistics;
     }
 
     public void retrievedAllPackage() {
@@ -47,7 +52,7 @@ public class MemoryAndCPUStatistics implements Runnable {
                     LOGGER.info("Current memory use(MB): " + currentMemoryUse + '\n');
                 }
             }
-            LOGGER.info("Number of elements: " + FileFileServiceTest.numberOfElements/1_000 + "k");
+            LOGGER.info("Number of elements: " + FileServletTest.numberOfElements/1_000 + "k");
             LOGGER.info("Total time: " + (System.currentTimeMillis() - startTime));
             LOGGER.info("Time for getting all packages: " + timeForGettingAllPackages);
             LOGGER.info("Max memory use(MB): " + maxMemoryUse + "\n\n");

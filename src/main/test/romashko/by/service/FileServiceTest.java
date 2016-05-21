@@ -10,7 +10,7 @@ import java.util.Random;
 
 import static romashko.by.service.MainService.*;
 
-public class FileFileServiceTest {
+public class FileServiceTest {
     public static int numberOfElements = 50_000_000;
     private String nameOfInputFile = "in" + numberOfElements + ".txt";
     private String nameOfOutputFile = "out.txt";

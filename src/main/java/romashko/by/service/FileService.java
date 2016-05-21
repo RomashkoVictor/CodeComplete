@@ -24,7 +24,7 @@ public class FileService {
     }
 
     public void writeBuffer() {
-        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(numberOfBuffers + ".txt").getChannel(), 4)) {
+        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(dir + numberOfBuffers + ".txt").getChannel(), 4)) {
             Arrays.sort(buffer, 0, currentNumberOfPackages);
 
             for (int i = 0; i < currentNumberOfPackages; i++) {
@@ -55,7 +55,7 @@ public class FileService {
     }
 
     public void createFile(String nameOfResultFile) {
-        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfResultFile).getChannel(), 4)) {
+        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(dir + nameOfResultFile).getChannel(), 4)) {
 
             PackageInputBuffer[] inputBuffers = new PackageInputBuffer[numberOfBuffers];
             File file[] = new File[numberOfBuffers];
@@ -68,7 +68,7 @@ public class FileService {
 
             for (int i = 0; i < numberOfBuffers; i++) {
                 file[i] = new File(i + ".txt");
-                inputBuffers[i] = new PackageInputBuffer(new FileInputStream(file[i]).getChannel(), 4);
+                inputBuffers[i] = new PackageInputBuffer(new FileInputStream(dir + file[i]).getChannel(), 4);
             }
 
             for (int i = 0; i < numberOfBuffers; i++) {
