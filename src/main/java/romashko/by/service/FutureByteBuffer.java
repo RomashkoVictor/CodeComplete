@@ -5,45 +5,57 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
-public class ConcurrentByteBuffer {
-    public static final int BUFFER_SIZE = 8185;
-    public static final int MAX_BUFFER_SIZE = 8192;
-    private ByteBuffer buffer;
-    private boolean locked;
-    private FileChannel fileChannel;
-    private boolean willClose;
+import static romashko.by.service.MainService.*;
 
-    public ConcurrentByteBuffer(FileChannel fileChannel){
+public class FutureByteBuffer {
+    public static final int MAX_SIZE_OF_DATA = 8;
+    public static final int MAX_BUFFER_SIZE = 8192;
+    public static final int BUFFER_SIZE = MAX_BUFFER_SIZE - MAX_SIZE_OF_DATA;
+    private final FileChannel fileChannel;
+    private ByteBuffer buffer;
+    private volatile boolean ready;
+
+    public FutureByteBuffer(FileChannel fileChannel) {
         this.fileChannel = fileChannel;
-        willClose = false;
         buffer = ByteBuffer.allocate(MAX_BUFFER_SIZE);
         buffer.limit(BUFFER_SIZE);
-        locked = false;
+        ready = true;
+    }
+
+    public boolean isReady() {
+        return ready;
     }
 
     public FileChannel getFileChannel() {
         return fileChannel;
     }
 
-    public boolean isLocked() {
-        return locked;
-    }
-
-    public void setLocked(boolean locked) {
-        this.locked= locked;
-    }
-
     public ByteBuffer getBuffer() {
         return buffer;
     }
 
-    public void setWillClose(boolean willClose) {
-        this.willClose = willClose;
+    public void waitIfNotReady() {
+        try {
+            synchronized (this) {
+                while (!ready) {
+                    this.wait();
+                }
+            }
+        } catch (InterruptedException e) {
+            LOGGER.error(e);
+        }
     }
 
-    public boolean isWillClose() {
-        return willClose;
+
+
+    public void lock() {
+        ready = false;
     }
+
+    public void unlock() {
+        ready = true;
+    }
+
     //Delegating FileChannel
 
     public int read(ByteBuffer dst) throws IOException {
@@ -52,14 +64,6 @@ public class ConcurrentByteBuffer {
 
     public int write(ByteBuffer src) throws IOException {
         return fileChannel.write(src);
-    }
-
-    public void close() throws IOException {
-        fileChannel.close();
-    }
-
-    public boolean isOpen() {
-        return fileChannel.isOpen();
     }
 
     //Delegating ByteBuffer
@@ -88,6 +92,10 @@ public class ConcurrentByteBuffer {
         return buffer.get(dst, offset, length);
     }
 
+    public ByteBuffer put(int index, byte b) {
+        return buffer.put(index, b);
+    }
+
     public Buffer position(int newPosition) {
         return buffer.position(newPosition);
     }
@@ -104,12 +112,8 @@ public class ConcurrentByteBuffer {
         return buffer.position();
     }
 
-    public ByteBuffer put(int index, byte b) {
-        return buffer.put(index, b);
-    }
-
     public Buffer clear() {
-        return buffer.clear().limit(ConcurrentByteBuffer.BUFFER_SIZE);
+        return buffer.clear().limit(FutureByteBuffer.BUFFER_SIZE);
     }
 
     public int remaining() {

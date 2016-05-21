@@ -3,75 +3,103 @@ package romashko.by.service;
 import romashko.by.model.Package;
 
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.Arrays;
-import java.util.Queue;
+import java.util.PriorityQueue;
+import java.util.TreeMap;
 
-public class FileService implements Runnable {
+import static romashko.by.service.MainService.*;
 
-    private Thread thread;
-    boolean running = false;
-    private int frequency = 50;
-    private Queue<PackageInputBuffer> inputBuffers;
-    private Queue<ByteBuffer> outputBuffers;
-    private Queue<FileChannel> outputFiles;
-    private int numberOfBuffer;
+public class FileService {
+    private Package buffer[];
+    private int currentNumberOfPackages;
+    private int maxNumberOfPackages;
+    private int maxSizeOfBuffer;
+    private int currentSizeOfBuffer;
+    private int numberOfBuffers;
 
-    @Override
-    public void run() {
-        try {
-            while (running) {
-                if (!outputBuffers.isEmpty()) {
-                    ByteBuffer buffer = outputBuffers.poll();
-                    FileChannel in = outputFiles.poll();
+    public FileService(int maxNumberOfPackages, int maxSizeOfBuffer) {
+        this.maxNumberOfPackages = maxNumberOfPackages;
+        this.maxSizeOfBuffer = maxSizeOfBuffer;
+        buffer = new Package[maxNumberOfPackages];
+    }
 
-                } else {
-                    Thread.sleep(frequency);
-                }
+    public void writeBuffer() {
+        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(numberOfBuffers + ".txt").getChannel(), 4)) {
+            Arrays.sort(buffer, 0, currentNumberOfPackages);
+
+            for (int i = 0; i < currentNumberOfPackages; i++) {
+                out.writePackage(buffer[i]);
             }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
 
-    }
-
-    public void readBuffer(PackageInputBuffer input) {
-        synchronized (input) {
-            try {
-                inputBuffers.add(input);
-                input.wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public void writeBuffer(ByteBuffer buffer, FileChannel in) {
-        outputBuffers.add(buffer);
-        outputFiles.add(in);
-    }
-
-    public void startWriting() {
-        running = true;
-        thread = new Thread(this);
-        thread.start();
-    }
-
-    public void stopWriting() {
-        try {
-            running = false;
-            thread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void writePackage(Package pack, OutputStream out) {
-        try {
-            out.write(pack.getData());
+            buffer = new Package[maxNumberOfPackages];
+            numberOfBuffers++;
+            currentSizeOfBuffer = 0;
+            currentNumberOfPackages = 0;
         } catch (IOException e) {
             e.printStackTrace();
+            LOGGER.error(e);
         }
+    }
+
+
+    public void add(Package pack) {
+        if (!canAddPackage(pack.getLength())) {
+            writeBuffer();
+        }
+        buffer[currentNumberOfPackages++] = pack;
+        currentSizeOfBuffer += pack.getLength();
+    }
+
+    public void closeBuffer() {
+        writeBuffer();
+    }
+
+    public void createFile(String nameOfResultFile) {
+        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfResultFile).getChannel(), 4)) {
+
+            PackageInputBuffer[] inputBuffers = new PackageInputBuffer[numberOfBuffers];
+            File file[] = new File[numberOfBuffers];
+            PriorityQueue<Package> queue = new PriorityQueue<>(numberOfBuffers);
+            Integer[] values = new Integer[numberOfBuffers];
+            for (int i = 0; i < numberOfBuffers; i++) {
+                values[i] = i;
+            }
+            TreeMap<Package, Integer> map = new TreeMap<>();
+
+            for (int i = 0; i < numberOfBuffers; i++) {
+                file[i] = new File(i + ".txt");
+                inputBuffers[i] = new PackageInputBuffer(new FileInputStream(file[i]).getChannel(), 4);
+            }
+
+            for (int i = 0; i < numberOfBuffers; i++) {
+                Package pack = inputBuffers[i].readPackage();
+                map.put(pack, values[i]);
+                queue.add(pack);
+            }
+
+            while (queue.peek() != null) {
+                Package temp = queue.poll();
+                out.writeDataOfPackage(temp);
+
+                int index = map.get(temp);
+                map.remove(temp);
+                temp = inputBuffers[index].readPackage();
+                if (temp != null) {
+                    map.put(temp, values[index]);
+                    queue.add(temp);
+                }
+            }
+            for (int i = 0; i < numberOfBuffers; i++) {
+                inputBuffers[i].close();
+                file[i].delete();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            LOGGER.error(e);
+        }
+    }
+
+    public boolean canAddPackage(int addSize) {
+        return (currentSizeOfBuffer + addSize < maxSizeOfBuffer && currentNumberOfPackages < maxNumberOfPackages);
     }
 }

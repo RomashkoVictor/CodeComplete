@@ -1,10 +1,8 @@
 package romashko.by;
 
-import romashko.by.service.FileServiceTest;
-import romashko.by.service.Service;
+import romashko.by.service.FileFileServiceTest;
 
-import java.io.FileOutputStream;
-import java.io.PrintWriter;
+import static romashko.by.service.MainService.*;
 
 public class MemoryAndCPUStatistics implements Runnable {
     private boolean running;
@@ -45,14 +43,14 @@ public class MemoryAndCPUStatistics implements Runnable {
                     maxMemoryUse = currentMemoryUse;
                 }
                 if (!onlyResult) {
-                    Service.LOGGER.debug("Current time: " + (System.currentTimeMillis() - startTime));
-                    Service.LOGGER.debug("Current memory use(MB): " + currentMemoryUse + '\n');
+                    LOGGER.info("Current time: " + (System.currentTimeMillis() - startTime));
+                    LOGGER.info("Current memory use(MB): " + currentMemoryUse + '\n');
                 }
             }
-            Service.LOGGER.debug("Number of elements: " + FileServiceTest.numberOfElements/1_000 + "k");
-            Service.LOGGER.debug("Total time: " + (System.currentTimeMillis() - startTime));
-            Service.LOGGER.debug("Time for getting all packages: " + timeForGettingAllPackages);
-            Service.LOGGER.debug("Max memory use(MB): " + maxMemoryUse + "\n\n");
+            LOGGER.info("Number of elements: " + FileFileServiceTest.numberOfElements/1_000 + "k");
+            LOGGER.info("Total time: " + (System.currentTimeMillis() - startTime));
+            LOGGER.info("Time for getting all packages: " + timeForGettingAllPackages);
+            LOGGER.info("Max memory use(MB): " + maxMemoryUse + "\n\n");
         } catch (Exception e) {
             e.printStackTrace();
         }

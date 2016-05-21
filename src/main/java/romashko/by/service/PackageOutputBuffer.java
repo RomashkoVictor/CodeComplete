@@ -3,37 +3,46 @@ package romashko.by.service;
 
 import romashko.by.model.Package;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-public class PackageOutputBuffer implements AutoCloseable {
-    private ConcurrentByteBuffer currentBuffer;
-    private ConcurrentByteBuffer reserveBuffer;
 
-    public PackageOutputBuffer(FileChannel fileChannel) {
-        currentBuffer = new ConcurrentByteBuffer(fileChannel);
-        reserveBuffer = new ConcurrentByteBuffer(fileChannel);
+public class PackageOutputBuffer implements AutoCloseable {
+    private int numberOfBuffers;
+    private int currentNumberOfBuffer;
+    private FutureByteBuffer currentBuffer;
+    private FutureByteBuffer[] buffers;
+
+    public PackageOutputBuffer(FileChannel fileChannel, int numberOfBuffers) {
+        if (numberOfBuffers < 1) {
+            numberOfBuffers = 1;
+        }
+        this.numberOfBuffers = numberOfBuffers;
+        buffers = new FutureByteBuffer[numberOfBuffers];
+        for (int i = 0; i < numberOfBuffers; i++) {
+            buffers[i] = new FutureByteBuffer(fileChannel);
+        }
+        currentNumberOfBuffer = 0;
+        currentBuffer = buffers[currentNumberOfBuffer];
     }
 
-    private void exchangeBuffers() {
-        try {
-            synchronized (reserveBuffer) {
-                while (reserveBuffer.isLocked()) {
-                    reserveBuffer.wait();
-                }
-                ConcurrentByteBuffer temp = currentBuffer;
-                currentBuffer = reserveBuffer;
-                reserveBuffer = temp;
-                reserveBuffer.setLocked(true);
-            }
-            DiskService.writeBuffer(reserveBuffer);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    private FutureByteBuffer nextBuffer() {
+        if (currentNumberOfBuffer + 1 == numberOfBuffers) {
+            currentNumberOfBuffer = 0;
+            return buffers[currentNumberOfBuffer];
+        } else {
+            return buffers[++currentNumberOfBuffer];
         }
     }
 
+    private void exchangeBuffers() {
+        DiskService.getDiskService().writeBuffer(currentBuffer);
+        currentBuffer = nextBuffer();
+        currentBuffer.waitIfNotReady();
+    }
+
     public void writePackage(Package pack) {
+        currentBuffer.waitIfNotReady();
         if (currentBuffer.remaining() < 8) {
             exchangeBuffers();
         }
@@ -43,6 +52,7 @@ public class PackageOutputBuffer implements AutoCloseable {
     }
 
     public void writeDataOfPackage(Package pack) {
+        currentBuffer.waitIfNotReady();
         byte[] data = pack.getData();
         int length = data.length;
         int position = 0;
@@ -58,13 +68,16 @@ public class PackageOutputBuffer implements AutoCloseable {
         }
     }
 
+    public void flush(){
+        exchangeBuffers();
+    }
+
     @Override
     public void close() throws IOException {
-        if(currentBuffer.position()!=0){
-            exchangeBuffers();
+        flush();
+        for (FutureByteBuffer buffer : buffers) {
+            buffer.waitIfNotReady();
         }
-        currentBuffer.position(currentBuffer.limit());
-        currentBuffer.setWillClose(true);
-        DiskService.writeBuffer(currentBuffer);
+        buffers[0].getFileChannel().close();
     }
 }

@@ -8,7 +8,9 @@ import romashko.by.model.Package;
 import java.io.*;
 import java.util.Random;
 
-public class FileServiceTest {
+import static romashko.by.service.MainService.*;
+
+public class FileFileServiceTest {
     public static int numberOfElements = 50_000_000;
     private String nameOfInputFile = "in" + numberOfElements + ".txt";
     private String nameOfOutputFile = "out.txt";
@@ -32,15 +34,16 @@ public class FileServiceTest {
         if (shuffle) {
             numbers = getRandomNumbers(numbers);
         }
-        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile).getChannel())) {
-            Service.LOGGER.debug("Start generating file");
+        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile).getChannel(), 4)) {
+            LOGGER.info("Start generating file");
             for (int i = 0; i < numberOfElements; i++) {
                 Package temp = new Package(numbers[i], (numbers[i] + " abcdefghijklmnopqrstuvwxyz\n").getBytes());
                 out.writePackage(temp);
             }
-            Service.LOGGER.debug("Cancel generating file");
+            out.flush();
+            LOGGER.info("Cancel generating file");
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
         }
     }
 
@@ -68,7 +71,7 @@ public class FileServiceTest {
                 return false;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error(e);
         }
         return true;
     }
@@ -78,36 +81,35 @@ public class FileServiceTest {
     public void startTest() throws Exception {
         MemoryAndCPUStatistics statistics = new MemoryAndCPUStatistics();
         File inFile = new File(nameOfInputFile);
-
-        DiskService diskService = new DiskService();
-        diskService.startService();
-
         if (!inFile.exists() || inFile.length() == 0) {
+            statistics.startStatistics(100, true);
             generateFile(false);
+            statistics.endStatistics();
         }
-        Service.LOGGER.debug("Start test with number: " + numberOfElements);
+        LOGGER.debug("Start test with number: " + numberOfElements);
         statistics.startStatistics(100, true);
-        Service service = new Service(100_000, 10_000_000);
-        try (PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel())) {
+        FileService fileService = new FileService(100_000, 10_000_000);
+        try (PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel(), 4)) {
             Package temp = in.readPackage();
             while (temp != null) {
-                service.add(temp);
+                fileService.add(temp);
                 temp = in.readPackage();
             }
-            service.closeBuffer();
+            fileService.closeBuffer();
 
             statistics.retrievedAllPackage();
 
-            service.createFile(nameOfOutputFile);
+            fileService.createFile(nameOfOutputFile);
 
-            diskService.stopService();
             statistics.endStatistics();
-            if (!isFileCorrect()) {
-                Service.LOGGER.error("File is incorrect");
-            }
-
         } catch (Exception e) {
             e.printStackTrace();
+            LOGGER.error(e);
+        }
+        DiskService.getDiskService().stopService();
+        if (!isFileCorrect()) {
+            System.out.println("File is incorrect\n");
+            LOGGER.error("File is incorrect\n");
         }
     }
 }
