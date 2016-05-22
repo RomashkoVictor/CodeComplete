@@ -27,12 +27,14 @@ public class FileServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         if (DigestUtils.md5Hex(data).equals(checkSum)) {
             out.print("OK");
-            MainService.getMainService().addPackage(new Package(num, data.getBytes()), isEnd);
             response.setStatus(HttpServletResponse.SC_OK);
+            out.flush();
+            MainService.getMainService().addPackage(new Package(num, data.getBytes()), isEnd);
         } else {
             out.print("REPEAT");
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.flush();
         }
-        out.flush();
+
     }
 }

@@ -1,51 +1,58 @@
 package romashko.by.model;
 
-import java.util.Arrays;
-
 public class Package implements Comparable{
-    private int num;
+    private Header header;
     private byte[] data;
 
+    public Package(Header header) {
+        this.header = header;
+        data = null;
+    }
+
     public Package(int num, byte[] data){
-        this.num = num;
+        header = new Header(data.length, num, num);
         this.data = data;
     }
 
-    public int getNum() {
-        return num;
+    public Package(Header header, byte[] data) {
+        this.header = header;
+        this.data = data;
+    }
+
+    public Header getHeader() {
+        return header;
+    }
+
+    public int getStartIndex() {
+        return header.getStartIndex();
+    }
+
+    public int getEndIndex() {
+        return header.getEndIndex();
     }
 
     public byte[] getData() {
         return data;
     }
 
-    public void setNum(int num) {
-        this.num = num;
+    public void setStartIndex(int startIndex) {
+        header.setStartIndex(startIndex);
+    }
+
+    public void setEndIndex(int endIndex) {
+        header.setEndIndex(endIndex);
     }
 
     public void setData(byte[] data) {
         this.data = data;
     }
 
-    public int getLength() {
-        return 4 + data.length * 1;
+    public long getLength() {
+        return header.getLength();
     }
-
-//    public static byte[] getByteArrayFromInt(int value) {
-//        return new byte[]{
-//                (byte) (value >>> 24),
-//                (byte) (value >>> 16),
-//                (byte) (value >>> 8),
-//                (byte) value};
-//    }
-//
-//    public static int getIntFromByteArray(byte[] array){
-//        return (((int)array[0])<<24) | ((((int)array[1])<<16)&0x00FF0000) |
-//                ((((int)array[2])<<8)&0x0000FF00) | ((((int)array[3]))&0x000000FF);
-//    }
 
     @Override
     public int compareTo(Object o) {
-        return this.num - ((Package)o).num;
+        return this.header.getStartIndex() - ((Package)o).header.getStartIndex();
     }
 }

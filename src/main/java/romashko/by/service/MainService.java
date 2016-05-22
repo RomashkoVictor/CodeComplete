@@ -32,6 +32,10 @@ public class MainService {
         return maxNumberOfPackages;
     }
 
+    public static void setMaxNumberOfPackages(int maxNumberOfPackages) {
+        MainService.maxNumberOfPackages = maxNumberOfPackages;
+    }
+
     public static MainService getMainService(){
         return MAIN_SERVICE;
     }
@@ -44,6 +48,8 @@ public class MainService {
         if(!isFileCorrect()){
             System.out.println("File is incorrect\n");
             LOGGER.error("File is incorrect\n");
+        }else{
+            System.out.println("File is correct)))))\n");
         }
         MemoryAndCPUStatistics.getMemoryAndCPUStatistics().endStatistics();
     }
@@ -51,7 +57,7 @@ public class MainService {
     public synchronized void addPackage(Package pack, boolean endPackage){
         if(numberOfPackages < maxNumberOfPackages) {
             if (endPackage) {
-                maxNumberOfPackages = pack.getNum();
+                maxNumberOfPackages = pack.getStartIndex();
             }
             numberOfPackages++;
             fileService.add(pack);

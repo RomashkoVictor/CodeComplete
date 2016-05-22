@@ -8,18 +8,18 @@ import static romashko.by.service.MainService.*;
 
 public class DiskService implements Runnable {
     private static final DiskService DISK_SERVICE = new DiskService();
-    public Thread thread;
+    private Thread thread;
     private boolean running = false;
     private Queue<FutureByteBuffer> inputBuffers = new ConcurrentLinkedQueue<>();
     private Queue<FutureByteBuffer> outputBuffers = new ConcurrentLinkedQueue<>();
 
-    private DiskService(){
+    private DiskService() {
         running = true;
         thread = new Thread(this);
         thread.start();
     }
 
-    public static DiskService getDiskService(){
+    public static DiskService getDiskService() {
         return DISK_SERVICE;
     }
 
@@ -51,13 +51,10 @@ public class DiskService implements Runnable {
         }
     }
 
-    public static void readFromDisk(FutureByteBuffer inputBuffer){
+    public static void readFromDisk(FutureByteBuffer inputBuffer) {
         try {
             int addSize = 0;
             while (inputBuffer.remaining() != 0) {
-                if(inputBuffer.remaining()>8){
-                    System.out.println("!" + inputBuffer.remaining());
-                }
                 inputBuffer.put(addSize++, inputBuffer.get());
             }
             inputBuffer.clear();
@@ -68,13 +65,13 @@ public class DiskService implements Runnable {
                 inputBuffer.unlock();
                 inputBuffer.notify();
             }
-        }catch(IOException e){
+        } catch (IOException e) {
             LOGGER.error(e);
             e.printStackTrace();
         }
     }
 
-    public static void writeToDisk(FutureByteBuffer outputBuffer){
+    public static void writeToDisk(FutureByteBuffer outputBuffer) {
         try {
             outputBuffer.flip();
             outputBuffer.write(outputBuffer.getBuffer());
@@ -83,7 +80,7 @@ public class DiskService implements Runnable {
                 outputBuffer.unlock();
                 outputBuffer.notify();
             }
-        }catch(IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
             LOGGER.error(e);
         }
@@ -102,6 +99,9 @@ public class DiskService implements Runnable {
                 } else {
                     synchronized (this) {
                         if (outputBuffers.isEmpty() && inputBuffers.isEmpty()) {
+                            synchronized (MergeService.getMergeService()) {
+                                MergeService.getMergeService().notify();
+                            }
                             this.wait();
                         }
                     }

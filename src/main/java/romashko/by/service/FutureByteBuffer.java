@@ -8,7 +8,7 @@ import java.nio.channels.FileChannel;
 import static romashko.by.service.MainService.*;
 
 public class FutureByteBuffer {
-    public static final int MAX_SIZE_OF_DATA = 8;
+    public static final int MAX_SIZE_OF_DATA = 16;
     public static final int MAX_BUFFER_SIZE = 8192;
     public static final int BUFFER_SIZE = MAX_BUFFER_SIZE - MAX_SIZE_OF_DATA;
     private final FileChannel fileChannel;
@@ -72,12 +72,20 @@ public class FutureByteBuffer {
         return buffer.getInt();
     }
 
+    public long getLong() {
+        return buffer.getLong();
+    }
+
     public ByteBuffer put(byte[] src, int offset, int length) {
         return buffer.put(src, offset, length);
     }
 
     public ByteBuffer putInt(int value) {
         return buffer.putInt(value);
+    }
+
+    public ByteBuffer putLong(long value) {
+        return buffer.putLong(value);
     }
 
     public ByteBuffer put(byte b) {
@@ -91,6 +99,8 @@ public class FutureByteBuffer {
     public ByteBuffer get(byte[] dst, int offset, int length) {
         return buffer.get(dst, offset, length);
     }
+
+
 
     public ByteBuffer put(int index, byte b) {
         return buffer.put(index, b);

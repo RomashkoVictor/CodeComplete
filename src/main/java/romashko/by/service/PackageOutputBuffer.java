@@ -1,6 +1,7 @@
 package romashko.by.service;
 
 
+import romashko.by.model.Header;
 import romashko.by.model.Package;
 
 import java.io.IOException;
@@ -41,14 +42,14 @@ public class PackageOutputBuffer implements AutoCloseable {
         currentBuffer.waitIfNotReady();
     }
 
-    public void writePackage(Package pack) {
+    public void writePackageHeader(Header header) {
         currentBuffer.waitIfNotReady();
-        if (currentBuffer.remaining() < 8) {
+        if (currentBuffer.remaining() < FutureByteBuffer.MAX_SIZE_OF_DATA) {
             exchangeBuffers();
         }
-        currentBuffer.putInt(pack.getLength());
-        currentBuffer.putInt(pack.getNum());
-        writeDataOfPackage(pack);
+        currentBuffer.putLong(header.getLength());
+        currentBuffer.putInt(header.getStartIndex());
+        currentBuffer.putInt(header.getEndIndex());
     }
 
     public void writeDataOfPackage(Package pack) {
@@ -68,7 +69,26 @@ public class PackageOutputBuffer implements AutoCloseable {
         }
     }
 
-    public void flush(){
+    public void writeDataOfPackage(Header header, PackageInputBuffer inputBuffer) {
+        currentBuffer.waitIfNotReady();
+        long length = header.getLength();
+        int read = 0;
+        while (length != 0) {
+            if(read == -1){
+                MainService.LOGGER.error("unexpected end of file");
+            }
+            int size = Math.min((int)Math.min((long)inputBuffer.remaining(), length), currentBuffer.remaining());
+            byte[] temp = new byte[FutureByteBuffer.MAX_BUFFER_SIZE];
+            read = inputBuffer.readData(temp, size);
+            length -= size;
+            currentBuffer.put(temp, 0, size);
+            if (currentBuffer.remaining() == 0) {
+                exchangeBuffers();
+            }
+        }
+    }
+
+    public void flush() {
         exchangeBuffers();
     }
 

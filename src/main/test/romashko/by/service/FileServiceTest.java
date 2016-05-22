@@ -3,6 +3,7 @@ package romashko.by.service;
 import jdk.nashorn.internal.ir.annotations.Ignore;
 import org.junit.Test;
 import romashko.by.MemoryAndCPUStatistics;
+import romashko.by.model.Header;
 import romashko.by.model.Package;
 
 import java.io.*;
@@ -14,6 +15,16 @@ public class FileServiceTest {
     public static int numberOfElements = 50_000_000;
     private String nameOfInputFile = "in" + numberOfElements + ".txt";
     private String nameOfOutputFile = "out.txt";
+    private String data = getData();
+
+    public static String getData() {
+        StringBuilder str = new StringBuilder();
+        for(int i = 0; i < 1; i++){
+            str.append(" abcdefghijklmnopqrstuvwxyz");
+        }
+        str.append("\n");
+        return str.toString();
+    }
 
     public static int[] getRandomNumbers(int[] numbers) {
         Random random = new Random();
@@ -34,11 +45,13 @@ public class FileServiceTest {
         if (shuffle) {
             numbers = getRandomNumbers(numbers);
         }
-        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile).getChannel(), 4)) {
+        try (PackageOutputBuffer out = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile).getChannel(), 4);
+             PackageOutputBuffer outHeader = new PackageOutputBuffer(new FileOutputStream(nameOfInputFile + ".header").getChannel(), 4)) {
             LOGGER.info("Start generating file");
             for (int i = 0; i < numberOfElements; i++) {
-                Package temp = new Package(numbers[i], (numbers[i] + " abcdefghijklmnopqrstuvwxyz\n").getBytes());
-                out.writePackage(temp);
+                Package temp = new Package(numbers[i], (numbers[i] + data).getBytes());
+                outHeader.writePackageHeader(temp.getHeader());
+                out.writeDataOfPackage(temp);
             }
             out.flush();
             LOGGER.info("Cancel generating file");
@@ -79,21 +92,25 @@ public class FileServiceTest {
     @Test
     @Ignore
     public void startTest() throws Exception {
+        MainService.setMaxNumberOfPackages(numberOfElements);
         MemoryAndCPUStatistics statistics = new MemoryAndCPUStatistics();
         File inFile = new File(nameOfInputFile);
         if (!inFile.exists() || inFile.length() == 0) {
             statistics.startStatistics(100, true);
-            generateFile(false);
+            generateFile(true);
             statistics.endStatistics();
         }
         LOGGER.debug("Start test with number: " + numberOfElements);
         statistics.startStatistics(100, true);
         FileService fileService = new FileService(100_000, 10_000_000);
-        try (PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel(), 4)) {
-            Package temp = in.readPackage();
-            while (temp != null) {
-                fileService.add(temp);
-                temp = in.readPackage();
+        try (PackageInputBuffer in = new PackageInputBuffer(new FileInputStream(nameOfInputFile).getChannel(), 10);
+             PackageInputBuffer inHeader = new PackageInputBuffer(new FileInputStream(nameOfInputFile + ".header").getChannel(), 10)) {
+            Header tempHeader = inHeader.readPackageHeader();
+            Package tempPackage = in.readDataOfPackage(tempHeader);
+            while (tempPackage != null) {
+                fileService.add(tempPackage);
+                tempHeader = inHeader.readPackageHeader();
+                tempPackage = in.readDataOfPackage(tempHeader);
             }
             fileService.closeBuffer();
 
@@ -102,7 +119,7 @@ public class FileServiceTest {
             fileService.createFile(nameOfOutputFile);
 
             statistics.endStatistics();
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
             LOGGER.error(e);
         }
