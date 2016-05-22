@@ -24,12 +24,16 @@ public class MainService {
     private MainService(){
         maxNumberOfPackages = Integer.MAX_VALUE;
         diskService = DiskService.getDiskService();
-        fileService = new FileService(100_000, 10_000_000);
+        fileService = new FileService(1_000_000, 10_000_000);
         MemoryAndCPUStatistics.getMemoryAndCPUStatistics().startStatistics(100, true);
     }
 
     public static int getMaxNumberOfPackages() {
         return maxNumberOfPackages;
+    }
+
+    public static void setMaxNumberOfPackages(int maxNumberOfPackages) {
+        MainService.maxNumberOfPackages = maxNumberOfPackages;
     }
 
     public static MainService getMainService(){
@@ -51,7 +55,7 @@ public class MainService {
     public synchronized void addPackage(Package pack, boolean endPackage){
         if(numberOfPackages < maxNumberOfPackages) {
             if (endPackage) {
-                maxNumberOfPackages = pack.getNum();
+                maxNumberOfPackages = pack.getStartIndex();
             }
             numberOfPackages++;
             fileService.add(pack);

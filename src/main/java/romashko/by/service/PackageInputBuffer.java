@@ -1,7 +1,10 @@
 package romashko.by.service;
 
+import romashko.by.model.Header;
 import romashko.by.model.Package;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 public class PackageInputBuffer implements AutoCloseable {
@@ -71,19 +74,29 @@ public class PackageInputBuffer implements AutoCloseable {
         currentBuffer.waitIfNotReady();
     }
 
-    public Package readPackage() {
+    public Header readPackageHeader() {
         currentBuffer.waitIfNotReady();
-        while (currentBuffer.remaining() < 8) {
+        while (currentBuffer.remaining() < FutureByteBuffer.MAX_SIZE_OF_DATA) {
             exchangeBuffers();
             if(isEndOfFile()){
                 return null;
             }
         }
-        int length = currentBuffer.getInt() - 4;
-        int num = currentBuffer.getInt();
-        byte[] data = new byte[length];
+        long length = currentBuffer.getLong();
+        int startIndex = currentBuffer.getInt();
+        int endIndex = currentBuffer.getInt();
+        return new Header(length, startIndex, endIndex);
+    }
+
+    public Package readDataOfPackage(Header header) {
+        if(header == null){
+            return null;
+        }
+        currentBuffer.waitIfNotReady();
+        long length = header.getLength();
+        byte[] data = new byte[(int)length];
         int position = 0;
-        int size = Math.min(currentBuffer.remaining(), length);
+        int size = (int)Math.min(currentBuffer.remaining(), length);
         currentBuffer.get(data, position, size);
         length -= size;
 
@@ -93,15 +106,31 @@ public class PackageInputBuffer implements AutoCloseable {
             if(isEndOfFile()){
                 return null;
             }
-            size = Math.min(currentBuffer.remaining(), length);
+            size = (int)Math.min(currentBuffer.remaining(), length);
             currentBuffer.get(data, position, size);
             length -= size;
         }
-        return new Package(num, data);
+        return new Package(header, data);
+    }
+
+    public int readData(byte[] dst, int length) {
+        currentBuffer.waitIfNotReady();
+        currentBuffer.get(dst, 0, length);
+        if(remaining() == 0){
+            exchangeBuffers();
+            if(isEndOfFile()){
+                return -1;
+            }
+        }
+        return length;
+    }
+
+    public int remaining(){
+        return currentBuffer.remaining();
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() throws IOException {
         for (FutureByteBuffer buffer : buffers) {
             buffer.waitIfNotReady();
         }
