@@ -13,11 +13,11 @@ import java.io.IOException;
 public class MainService {
     private static final MainService MAIN_SERVICE = new MainService();
     public static String dir = System.getProperty("user.home") +  File.separator + "Downloads" + File.separator;
+    private String nameOfOutputFile = "out.txt";
     private DiskService diskService;
     private FileService fileService;
     private static int maxNumberOfPackages;
     private int numberOfPackages;
-    private String nameOfOutputFile = "out.txt";
     public final static Logger LOGGER = LogManager.getLogger(FileService.class);
     public static boolean close = false;
 
@@ -25,8 +25,8 @@ public class MainService {
     private MainService(){
         maxNumberOfPackages = Integer.MAX_VALUE;
         diskService = DiskService.getDiskService();
-        fileService = new FileService(100_000, 10_000_000);
-        MemoryAndCPUStatistics.getMemoryAndCPUStatistics().startStatistics(100, true);
+        fileService = new FileService(100_000, 20_000_000);
+        //MemoryAndCPUStatistics.getMemoryAndCPUStatistics().startStatistics(100, true);
     }
 
     public static int getMaxNumberOfPackages() {
@@ -38,17 +38,17 @@ public class MainService {
     }
 
     private void createFile(){
-        MemoryAndCPUStatistics.getMemoryAndCPUStatistics().retrievedAllPackage();
+        //MemoryAndCPUStatistics.getMemoryAndCPUStatistics().retrievedAllPackage();
         fileService.closeBuffer();
         fileService.createFile(nameOfOutputFile);
         DiskService.getDiskService().stopService();
-        if(!isFileCorrect()){
-            System.out.println("File is incorrect\n");
-            LOGGER.error("File is incorrect\n");
-        } else{
-            System.out.println("File is correct\n");
-        }
-        MemoryAndCPUStatistics.getMemoryAndCPUStatistics().endStatistics();
+//        if(!isFileCorrect()){
+//            System.out.println("File is incorrect\n");
+//            LOGGER.error("File is incorrect\n");
+//        } else{
+//            System.out.println("File is correct\n");
+//        }
+        //MemoryAndCPUStatistics.getMemoryAndCPUStatistics().endStatistics();
     }
 
     public synchronized void addPackage(Package pack, boolean endPackage){
