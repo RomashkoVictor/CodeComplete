@@ -6,12 +6,13 @@ import romashko.by.MemoryAndCPUStatistics;
 import romashko.by.model.Package;
 
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
 public class MainService {
     private static final MainService MAIN_SERVICE = new MainService();
-    public static String dir = "C:\\Users\\Victor\\Git\\CodeComplete\\";
+    public static String dir = System.getProperty("user.home") +  File.separator + "Downloads" + File.separator;
     private DiskService diskService;
     private FileService fileService;
     private static int maxNumberOfPackages;
@@ -44,6 +45,8 @@ public class MainService {
         if(!isFileCorrect()){
             System.out.println("File is incorrect\n");
             LOGGER.error("File is incorrect\n");
+        } else{
+            System.out.println("File is correct\n");
         }
         MemoryAndCPUStatistics.getMemoryAndCPUStatistics().endStatistics();
     }
