@@ -42,6 +42,8 @@ public class MainService {
         fileService.closeBuffer();
         fileService.createFile(nameOfOutputFile);
         DiskService.getDiskService().stopService();
+        LOGGER.info("File is complete)))))\n");
+        System.out.println("File is complete)))))\n");
 //        if(!isFileCorrect()){
 //            System.out.println("File is incorrect\n");
 //            LOGGER.error("File is incorrect\n");
